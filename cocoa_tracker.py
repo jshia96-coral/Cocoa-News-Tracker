@@ -6,16 +6,18 @@ import time
 import google.generativeai as genai
 
 # --- Configuration ---
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Using the active, correct model
-model = genai.GenerativeModel('gemini-2.5-flash')
+# This pulls the key from your Streamlit Cloud Secrets vault
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+except:
+    st.error("API Key missing. Please add GEMINI_API_KEY to Streamlit Secrets.")
 
 # --- Page Setup ---
 st.set_page_config(page_title="Professional Cocoa Terminal Tracker", layout="wide")
 st.title("🍫 Professional Cocoa Terminal & Demand Tracker")
-st.markdown("Direct RSS aggregation with **Lightning-Fast Batch AI Sentiment Analysis**.")
+st.markdown("Direct RSS aggregation with **AI-driven Bullish/Bearish sentiment analysis**.")
 
 # --- RSS Feed URLs ---
 macro_search = 'cocoa AND ("Ivory Coast" OR CCC OR "mid-crop" OR terminal OR futures OR export OR Reuters)'
@@ -27,14 +29,9 @@ DEMAND_RSS_URL = f"https://news.google.com/rss/search?q={urllib.parse.quote(dema
 # --- AI Batch Sentiment Analyst ---
 @st.cache_data(ttl=86400) 
 def analyze_batch_sentiments(headlines_tuple):
-    # Failsafe for the API Key
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
-         return ["🤖 (API Key Needed)"] * len(headlines_tuple)
-    
     if not headlines_tuple:
         return []
         
-    # Create a numbered list of all headlines to send to the AI
     numbered_list = "\n".join([f"{i+1}. {headline}" for i, headline in enumerate(headlines_tuple)])
     
     prompt = f"""
@@ -46,11 +43,6 @@ def analyze_batch_sentiments(headlines_tuple):
     
     Headlines:
     {numbered_list}
-    
-    Output format must be exactly like this:
-    1. Bullish
-    2. Bearish
-    3. Neutral
     """
     
     try:
@@ -64,21 +56,17 @@ def analyze_batch_sentiments(headlines_tuple):
             elif "bearish" in lower_line: sentiments.append("🐻 Bearish")
             else: sentiments.append("➖ Neutral")
             
-        # Failsafe in case the AI skips a line
         if len(sentiments) < len(headlines_tuple):
             sentiments.extend(["➖ Neutral"] * (len(headlines_tuple) - len(sentiments)))
             
         return sentiments[:len(headlines_tuple)]
         
-     except Exception as e:
+    except Exception as e:
         error_msg = str(e).lower()
-        # If the error is about quotas or limits, show a clean message
         if "quota" in error_msg or "limit" in error_msg or "429" in error_msg:
             return ["⚠️ Limit Hit"] * len(headlines_tuple)
-        
-        # Otherwise, show the actual error for troubleshooting
         return [f"⚠️ {str(e)}"] * len(headlines_tuple)
-        
+
 @st.cache_data(ttl=900) 
 def fetch_rss_news(rss_url):
     feed = feedparser.parse(rss_url)
@@ -97,11 +85,11 @@ def fetch_rss_news(rss_url):
                         'source': entry.source.title if hasattr(entry, 'source') else 'News Source',
                         'dt_obj': dt
                     })
-        except Exception:
+        except:
             continue
             
     articles.sort(key=lambda x: x['dt_obj'], reverse=True)
-    return articles[:10] # Bumped back up to 10 articles per column since we fixed the limit
+    return articles[:10] 
 
 # --- Dashboard Layout ---
 col1, col2 = st.columns(2)
@@ -111,17 +99,14 @@ with col1:
     supply_news = fetch_rss_news(MACRO_RSS_URL)
     
     if supply_news:
-        # Extract just the titles, turn into a tuple for the cache, and grade them all at once
         headlines = tuple([article['title'] for article in supply_news])
         sentiments = analyze_batch_sentiments(headlines)
         
-        # Zip pairs the article with its corresponding sentiment score
         for article, sentiment in zip(supply_news, sentiments):
             with st.expander(f"{sentiment} | **{article['title']}** ({article['publishedAt']})"):
-                st.markdown(f"**Source:** {article['source']}")
-                st.markdown(f"[Read full article]({article['link']})")
+                st.markdown(f"**Source:** {article['source']}\n\n[Read full article]({article['link']})")
     else:
-        st.write("No supply news found in the last 7 days.")
+        st.write("No supply news found.")
 
 with col2:
     st.header("🏭 Chocolatiers & Grinders")
@@ -129,18 +114,13 @@ with col2:
     
     if demand_news:
         headlines = tuple([article['title'] for article in demand_news])
-        time.sleep(5) # <-- ADD THIS LINE: Gives Google 3 seconds to breathe
+        time.sleep(5) # Safety pause to prevent quota errors between columns
         sentiments = analyze_batch_sentiments(headlines)
         
         for article, sentiment in zip(demand_news, sentiments):
             with st.expander(f"{sentiment} | **{article['title']}** ({article['publishedAt']})"):
-                st.markdown(f"**Source:** {article['source']}")
-                st.markdown(f"[Read full article]({article['link']})")
+                st.markdown(f"**Source:** {article['source']}\n\n[Read full article]({article['link']})")
     else:
-
-        st.write("No chocolatier news found in the last 7 days.")
-
-
-
+        st.write("No demand news found.")
 
 

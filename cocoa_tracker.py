@@ -6,7 +6,7 @@ import time
 import google.generativeai as genai
 
 # --- Configuration ---
-GEMINI_API_KEY = st.secrets["AIzaSyA5T2W8hd4K_4hvhfh2ZGJLNoe69SW9U0E"]
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Using the active, correct model
@@ -129,4 +129,5 @@ with col2:
                 st.markdown(f"**Source:** {article['source']}")
                 st.markdown(f"[Read full article]({article['link']})")
     else:
+
         st.write("No chocolatier news found in the last 7 days.")

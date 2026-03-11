@@ -27,7 +27,8 @@ DEMAND_RSS_URL = f"https://news.google.com/rss/search?q={urllib.parse.quote(dema
 # --- AI Batch Sentiment Analyst ---
 @st.cache_data(ttl=86400) 
 def analyze_batch_sentiments(headlines_tuple):
-    if GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
+    # Failsafe for the API Key
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
          return ["🤖 (API Key Needed)"] * len(headlines_tuple)
     
     if not headlines_tuple:
@@ -69,10 +70,10 @@ def analyze_batch_sentiments(headlines_tuple):
             
         return sentiments[:len(headlines_tuple)]
         
-except Exception as e:
-        # This will now print the exact server error on your screen
+    except Exception as e:
+        # This will now safely print the exact server error on your screen
         return [f"⚠️ {str(e)}"] * len(headlines_tuple)
-
+        
 @st.cache_data(ttl=900) 
 def fetch_rss_news(rss_url):
     feed = feedparser.parse(rss_url)
@@ -133,5 +134,6 @@ with col2:
     else:
 
         st.write("No chocolatier news found in the last 7 days.")
+
 
 

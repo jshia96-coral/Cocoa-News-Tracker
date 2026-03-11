@@ -6,18 +6,28 @@ import time
 import google.generativeai as genai
 
 # --- Configuration ---
-# This pulls the key from your Streamlit Cloud Secrets vault
 try:
+    # Safely pull the key from your Streamlit Cloud Secrets vault
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
-except:
-    st.error("API Key missing. Please add GEMINI_API_KEY to Streamlit Secrets.")
+except Exception:
+    st.error("🔑 API Key missing. Please add GEMINI_API_KEY to Streamlit Secrets.")
 
 # --- Page Setup ---
 st.set_page_config(page_title="Professional Cocoa Terminal Tracker", layout="wide")
-st.title("🍫 Professional Cocoa Terminal & Demand Tracker")
-st.markdown("Direct RSS aggregation with **AI-driven Bullish/Bearish sentiment analysis**.")
+
+# --- Header & Refresh Button ---
+col_title, col_btn = st.columns([4, 1])
+with col_title:
+    st.title("🍫 Cocoa Terminal & Demand Tracker")
+    st.markdown("Direct RSS aggregation with **AI-driven Sentiment Analysis**.")
+
+with col_btn:
+    # A simple button to clear the cache without using the side menu
+    if st.button("🔄 Force Refresh"):
+        st.cache_data.clear()
+        st.rerun()
 
 # --- RSS Feed URLs ---
 macro_search = 'cocoa AND ("Ivory Coast" OR CCC OR "mid-crop" OR terminal OR futures OR export OR Reuters)'
@@ -56,14 +66,16 @@ def analyze_batch_sentiments(headlines_tuple):
             elif "bearish" in lower_line: sentiments.append("🐻 Bearish")
             else: sentiments.append("➖ Neutral")
             
-        if len(sentiments) < len(headlines_tuple):
-            sentiments.extend(["➖ Neutral"] * (len(headlines_tuple) - len(sentiments)))
+        # Ensure we return the same number of sentiments as headlines
+        while len(sentiments) < len(headlines_tuple):
+            sentiments.append("➖ Neutral")
             
         return sentiments[:len(headlines_tuple)]
         
     except Exception as e:
         error_msg = str(e).lower()
-        if "quota" in error_msg or "limit" in error_msg or "429" in error_msg:
+        # Cleanly catch quota/limit errors
+        if any(x in error_msg for x in ["quota", "limit", "429"]):
             return ["⚠️ Limit Hit"] * len(headlines_tuple)
         return [f"⚠️ {str(e)}"] * len(headlines_tuple)
 
@@ -89,13 +101,13 @@ def fetch_rss_news(rss_url):
             continue
             
     articles.sort(key=lambda x: x['dt_obj'], reverse=True)
-    return articles[:10] 
+    return articles[:8] # Tracking 8 headlines per side
 
 # --- Dashboard Layout ---
 col1, col2 = st.columns(2)
 
 with col1:
-    st.header("🌍 Macro, CCC & Terminal News")
+    st.header("🌍 Macro & Terminal")
     supply_news = fetch_rss_news(MACRO_RSS_URL)
     
     if supply_news:
@@ -103,24 +115,26 @@ with col1:
         sentiments = analyze_batch_sentiments(headlines)
         
         for article, sentiment in zip(supply_news, sentiments):
-            with st.expander(f"{sentiment} | **{article['title']}** ({article['publishedAt']})"):
-                st.markdown(f"**Source:** {article['source']}\n\n[Read full article]({article['link']})")
+            with st.expander(f"{sentiment} | **{article['title']}**"):
+                st.markdown(f"**Source:** {article['source']} ({article['publishedAt']})\n\n[Read full article]({article['link']})")
     else:
         st.write("No supply news found.")
 
 with col2:
-    st.header("🏭 Chocolatiers & Grinders")
+    st.header("🏭 Demand & Grinders")
     demand_news = fetch_rss_news(DEMAND_RSS_URL)
     
     if demand_news:
         headlines = tuple([article['title'] for article in demand_news])
-        time.sleep(5) # Safety pause to prevent quota errors between columns
+        # Crucial pause to avoid triggering Google's bot detection
+        time.sleep(5) 
         sentiments = analyze_batch_sentiments(headlines)
         
         for article, sentiment in zip(demand_news, sentiments):
-            with st.expander(f"{sentiment} | **{article['title']}** ({article['publishedAt']})"):
-                st.markdown(f"**Source:** {article['source']}\n\n[Read full article]({article['link']})")
+            with st.expander(f"{sentiment} | **{article['title']}**"):
+                st.markdown(f"**Source:** {article['source']} ({article['publishedAt']})\n\n[Read full article]({article['link']})")
     else:
         st.write("No demand news found.")
+
 
 

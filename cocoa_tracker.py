@@ -122,6 +122,7 @@ with col2:
     
     if demand_news:
         headlines = tuple([article['title'] for article in demand_news])
+        time.sleep(3) # <-- ADD THIS LINE: Gives Google 3 seconds to breathe
         sentiments = analyze_batch_sentiments(headlines)
         
         for article, sentiment in zip(demand_news, sentiments):
@@ -131,3 +132,4 @@ with col2:
     else:
 
         st.write("No chocolatier news found in the last 7 days.")
+

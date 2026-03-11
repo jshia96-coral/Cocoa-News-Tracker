@@ -70,8 +70,13 @@ def analyze_batch_sentiments(headlines_tuple):
             
         return sentiments[:len(headlines_tuple)]
         
-    except Exception as e:
-        # This will now safely print the exact server error on your screen
+     except Exception as e:
+        error_msg = str(e).lower()
+        # If the error is about quotas or limits, show a clean message
+        if "quota" in error_msg or "limit" in error_msg or "429" in error_msg:
+            return ["⚠️ Limit Hit"] * len(headlines_tuple)
+        
+        # Otherwise, show the actual error for troubleshooting
         return [f"⚠️ {str(e)}"] * len(headlines_tuple)
         
 @st.cache_data(ttl=900) 
@@ -134,6 +139,7 @@ with col2:
     else:
 
         st.write("No chocolatier news found in the last 7 days.")
+
 
 
 

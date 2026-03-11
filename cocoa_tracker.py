@@ -69,8 +69,9 @@ def analyze_batch_sentiments(headlines_tuple):
             
         return sentiments[:len(headlines_tuple)]
         
-    except Exception as e:
-        return [f"⚠️ Error"] * len(headlines_tuple)
+except Exception as e:
+        # This will now print the exact server error on your screen
+        return [f"⚠️ {str(e)}"] * len(headlines_tuple)
 
 @st.cache_data(ttl=900) 
 def fetch_rss_news(rss_url):
@@ -132,4 +133,5 @@ with col2:
     else:
 
         st.write("No chocolatier news found in the last 7 days.")
+
 
